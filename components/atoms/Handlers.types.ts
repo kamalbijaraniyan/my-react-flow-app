@@ -1,4 +1,4 @@
-import { Edge, Position } from "@xyflow/react";
+import { Edge, MarkerType, Position } from "@xyflow/react";
 
 export enum EDGE_VARIANTS {
   CONTROL = "control",
@@ -13,7 +13,19 @@ export enum HANDLER_TYPE {
 }
 
 export interface CustomEdge extends Edge {
-  edgeVariant?: EDGE_VARIANTS;
+  edgeVariant: EDGE_VARIANTS;
+  markerEnd: {
+    type: MarkerType;
+    width: number;
+    height: number;
+    color: string;
+  };
+  style: {
+    stroke: string;
+  };
+  animated: boolean;
+  sourceHandle: string | null;
+  targetHandle: string | null;
 }
 
 export type HandlersConfig = {
@@ -33,3 +45,5 @@ export enum NODE_VARIANTS {
   MERGE = "merge",
   RETURN = "return",
 }
+
+

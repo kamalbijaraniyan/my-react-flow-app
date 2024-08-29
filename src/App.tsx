@@ -1,16 +1,23 @@
-import React, { DragEvent, useCallback, useState } from "react";
+import React, {
+  DragEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   Background,
   BackgroundVariant,
   Connection,
   Controls,
+  Edge,
   MarkerType,
   MiniMap,
+  OnConnectEnd,
   Panel,
   Position,
   ReactFlow,
   ReactFlowProvider,
-  addEdge,
   useEdgesState,
   useNodesState,
   useReactFlow,
@@ -32,6 +39,10 @@ import {
   NODE_VARIANTS,
 } from "../components/atoms/Handlers.types";
 import { StateProvider } from "../context/StateContext";
+import ContextMenu from "../components/atoms/EdgeOptionMenu/EdgeOptionMenu";
+import { MenuPosition } from "components/atoms/EdgeOptionMenu/EdgeOptionMenu.types";
+import TestComponent from "../components/TestComponent";
+import { getNodeVariantInfo } from "../lib/getNodeVariantInfo";
 
 export const handlerConfig = [
   { id: "topSource", type: HANDLER_TYPE.SOURCE, position: Position.Top },
@@ -44,8 +55,8 @@ export const handlerConfig = [
   { id: "leftTarget", type: HANDLER_TYPE.TARGET, position: Position.Left },
 ];
 
-const edgeMarkerEndStyles = {
-  controlFlow: {
+export const edgeMarkerEndStyles = {
+  normalFlow: {
     type: MarkerType.ArrowClosed,
     width: 20,
     height: 20,
@@ -59,8 +70,8 @@ const edgeMarkerEndStyles = {
   },
 };
 
-const connectionLineStyles = {
-  controlFlow: {
+export const connectionLineStyles = {
+  normalFlow: {
     stroke: "black",
   },
   dataFlow: {
@@ -133,8 +144,9 @@ const initialEdges: CustomEdge[] = [
     sourceHandle: "bottomSource",
     targetHandle: "topTarget",
     edgeVariant: EDGE_VARIANTS.ELSE_CONTROL,
-    markerEnd: edgeMarkerEndStyles.controlFlow,
-    style: connectionLineStyles.controlFlow,
+    markerEnd: edgeMarkerEndStyles.normalFlow,
+    style: connectionLineStyles.normalFlow,
+    animated: false,
   },
   {
     id: "e2-3",
@@ -144,8 +156,8 @@ const initialEdges: CustomEdge[] = [
     sourceHandle: "bottomSource",
     targetHandle: "topTarget",
     edgeVariant: EDGE_VARIANTS.CASE_CONTROL,
-    markerEnd: edgeMarkerEndStyles.dataFlow,
-    style: connectionLineStyles.dataFlow,
+    markerEnd: edgeMarkerEndStyles.normalFlow,
+    style: connectionLineStyles.normalFlow,
   },
 ];
 
@@ -164,46 +176,98 @@ const nodeTypes = {
 let id = 9;
 const getId = () => `${++id}`;
 function App() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState([
+    {
+      id: "2",
+      type: "default",
+      data: { label: "test Node" },
+      position: { x: 100, y: 125 },
+    },
+  ]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   const [selectedEdge, setSelectedEdge] = useState<EDGE_VARIANTS>(
     EDGE_VARIANTS.CONTROL
   );
 
-  // const { selectedEdge, setSelectedEdge } = useStateContext();
+  const [pendingConnection, setPendingConnection] = useState<Connection | null>(
+    null
+  );
+  const [menuPosition, setMenuPosition] = useState<MenuPosition>();
+  const [visible, setVisible] = useState(false);
+  const flowRef = useRef<HTMLDivElement>(null);
+  const { screenToFlowPosition } = useReactFlow();
 
-  // const onNodesChange = useCallback(
-  //   (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
-  //   [setNodes]
-  // );
-  // const onEdgesChange = useCallback(
-  //   (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-  //   [setEdges]
-  // );
+  const onConnectStart = useCallback(() => setPendingConnection(null), []);
   const onConnect = useCallback(
     (connection: Connection) => {
-      if (connection.source === connection.target) return;
+      const { source, target } = connection;
+      if (source === target) return;
+      const sourceNodeInfo = getNodeVariantInfo(source, nodes);
+      const targetNodeInfo = getNodeVariantInfo(target, nodes);
 
-      const newEdge = {
-        ...connection,
-        markerEnd:
-          selectedEdge === EDGE_VARIANTS.CASE_DATA
-            ? edgeMarkerEndStyles.dataFlow
-            : edgeMarkerEndStyles.controlFlow,
-        edgeVariant: selectedEdge,
-        style:
-          selectedEdge === EDGE_VARIANTS.CASE_DATA
-            ? connectionLineStyles.dataFlow
-            : connectionLineStyles.controlFlow,
-        animated: selectedEdge === EDGE_VARIANTS.CASE_DATA ? true : false,
-      };
-      return setEdges((eds) => addEdge(newEdge, eds));
+      switch (targetNodeInfo.nodeVariant) {
+        case NODE_VARIANTS.BLOCK:
+          if (
+            sourceNodeInfo.nodeVariant !== NODE_VARIANTS.INITIAL &&
+            sourceNodeInfo.nodeVariant !== NODE_VARIANTS.DECISION
+          ) {
+            return;
+          }
+          break;
+
+        case NODE_VARIANTS.EVENT:
+          if (
+            sourceNodeInfo.nodeVariant !== NODE_VARIANTS.BUSINESS_ACTIVITY &&
+            sourceNodeInfo.nodeVariant !== NODE_VARIANTS.ACTIVITY &&
+            sourceNodeInfo.nodeVariant !== NODE_VARIANTS.MERGE
+          ) {
+            return;
+          }
+          break;
+
+        default:
+          break;
+      }
+
+      setPendingConnection(connection);
     },
-    [setEdges, selectedEdge]
+    [nodes, selectedEdge, getNodeVariantInfo]
   );
 
-  const { screenToFlowPosition } = useReactFlow();
+  const onConnectionEnd: OnConnectEnd = useCallback(
+    (event) => {
+      if (flowRef.current) {
+        const pane = flowRef.current.getBoundingClientRect();
+        let clientX = 0;
+        let clientY = 0;
+
+        if (event instanceof MouseEvent) {
+          clientX = event.clientX;
+          clientY = event.clientY;
+        } else if (event instanceof TouchEvent) {
+          if (event.touches.length > 0) {
+            const touch = event.touches[0];
+            clientX = touch.clientX;
+            clientY = touch.clientY;
+          }
+        }
+
+        const newPosition = {
+          top: clientY < pane.height - 200 ? clientY : undefined,
+          left: clientX < pane.width - 200 ? clientX : undefined,
+          right: clientX >= pane.width - 200 ? pane.width - clientX : undefined,
+          bottom:
+            clientY >= pane.height - 200 ? pane.height - clientY : undefined,
+        };
+
+        setMenuPosition(newPosition);
+        setVisible(true);
+      }
+    },
+    [flowRef, setMenuPosition, setVisible]
+  );
+  const onPaneClick = useCallback(() => setVisible(false), []);
 
   const handleDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
@@ -219,6 +283,19 @@ function App() {
         event.dataTransfer.getData("application/reactflow")
       );
 
+      const newNodeType =
+        NODE_VARIANTS[data.variant.toUpperCase() as keyof typeof NODE_VARIANTS];
+      // console.log(nodes);
+
+      if (
+        newNodeType === NODE_VARIANTS.INITIAL &&
+        nodes.some((node) => node.type === NODE_VARIANTS.INITIAL)
+      ) {
+        console.log("yo");
+        
+        return;
+      }
+
       const newNode = {
         position,
         id: getId(),
@@ -226,26 +303,61 @@ function App() {
           data.variant.toUpperCase() as keyof typeof NODE_VARIANTS
         ],
         data: { label: "new Node" },
+        origin: [0.4, 0.4],
       };
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [screenToFlowPosition]
+    [screenToFlowPosition, nodes]
   );
+
+  const isValidConnection = (connection: Connection | Edge) => {
+    const { source, target } = connection;
+    const { nodeVariant, nodeId } = getNodeVariantInfo(source, nodes);
+    switch (nodeVariant) {
+      case NODE_VARIANTS.ACTIVITY:
+        const outgoingCount = edges.filter(
+          (edge) => edge.source === nodeId
+        ).length;
+
+        if (outgoingCount >= 1) {
+          return false;
+        }
+        return true;
+
+      default:
+        console.log("Unknown node variant");
+        return true;
+    }
+  };
 
   return (
     <div className="w-screen h-screen">
-      <ReactFlow
+      <TestComponent/>
+      {/* <ReactFlow
+        ref={flowRef}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectEnd={onConnectionEnd}
+        onConnectStart={onConnectStart}
         nodeTypes={nodeTypes}
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         fitView
+        onPaneClick={onPaneClick}
       >
+        {visible && pendingConnection ? (
+          <ContextMenu
+            menuClose={onPaneClick}
+            position={menuPosition}
+            connection={pendingConnection}
+            setEdges={setEdges}
+          />
+        ) : null}
+
         <MiniMap nodeStrokeWidth={1} />
         <Controls />
         <Background color="#ccc" variant={BackgroundVariant.Lines} />
@@ -285,7 +397,7 @@ function App() {
             ))}
           </div>
         </Panel>
-      </ReactFlow>
+      </ReactFlow> */}
     </div>
   );
 }

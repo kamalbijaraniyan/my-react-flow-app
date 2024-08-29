@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { NodeProps, NodeResizer, Position } from "@xyflow/react";
+import { NodeProps, NodeResizer, OnResize, Position } from "@xyflow/react";
 import Handlers from "../../atoms/Handlers";
 import { HANDLER_TYPE } from "../../atoms/Handlers.types";
 
@@ -14,7 +14,7 @@ const FlowFinal: React.FC<NodeProps> = ({ selected, id }) => {
   const [size, setSize] = useState({ width: 40, height: 40 });
   const [isHovered, setIsHovered] = useState(false);
 
-  const onResize = (e, { width, height }) => {
+  const onResize:OnResize = (e, { width, height }) => {
     const newSize = Math.max(width, height);
     setSize({ width: newSize, height: newSize });
   };

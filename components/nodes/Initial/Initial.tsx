@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { NodeProps, NodeResizer, Position } from "@xyflow/react";
+import React, { useCallback, useMemo, useState } from "react";
+import { NodeProps, NodeResizer, OnResize, Position, useEdges } from "@xyflow/react";
 import Handlers from "../../atoms/Handlers";
 import { HANDLER_TYPE } from "../../atoms/Handlers.types";
 
@@ -13,11 +13,17 @@ const handlerConfig = [
 const Initial: React.FC<NodeProps> = ({ selected, id }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [size, setSize] = useState({ width: 40, height: 40 });
+  const edges = useEdges()
 
-  const onResize = (e, { width, height }) => {
+  const onResize:OnResize = useCallback((e, { width, height }) => {
     const newSize = Math.max(width, height);
     setSize({ width: newSize, height: newSize });
-  };
+  },[])
+
+  const isConnectable = useMemo(() => {
+    const outgoingCount = edges.filter((edge) => edge.source === id).length;
+    return outgoingCount === 0;
+  }, [edges, id]);
 
   return (
     <>
@@ -43,6 +49,7 @@ const Initial: React.FC<NodeProps> = ({ selected, id }) => {
         nodeId={id}
         isHovered={isHovered}
         handlerConfigOptions={handlerConfig}
+        isConnectable={isConnectable}
       />
     </>
   );

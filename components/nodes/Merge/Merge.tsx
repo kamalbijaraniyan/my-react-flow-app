@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { NodeProps, NodeResizer } from "@xyflow/react";
+import React, { useCallback, useState } from "react";
+import { NodeProps, NodeResizer, OnResize, useEdges } from "@xyflow/react";
 import { NodeData } from "./Merge.types";
 import Handlers from "../../atoms/Handlers";
 import { handlerConfig } from "../../../src/App";
@@ -7,10 +7,17 @@ import { handlerConfig } from "../../../src/App";
 const Merge: React.FC<NodeProps<NodeData>> = ({ id, data, selected }) => {
   const [size, setSize] = useState({ width: 40, height: 40 });
   const [isHovered, setIsHovered] = useState(false);
+  const edges = useEdges();
 
-  const onResize = (e, { width, height }) => {
+  const onResize:OnResize = useCallback((e, { width, height }) => {
     setSize({ width, height });
-  };
+  },[])
+
+  const isValidConnection = useCallback(() => {
+    const outgoingCount = edges.filter((edge) => edge.source === id).length;
+    return outgoingCount < 1;
+  },[edges, id])
+
 
   return (
     <>
@@ -44,6 +51,7 @@ const Merge: React.FC<NodeProps<NodeData>> = ({ id, data, selected }) => {
         nodeId={id}
         isHovered={isHovered}
         handlerConfigOptions={handlerConfig}
+        isValidConnection={isValidConnection}
       />
     </>
   );

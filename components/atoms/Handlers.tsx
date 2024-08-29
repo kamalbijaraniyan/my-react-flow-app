@@ -1,8 +1,12 @@
-import { Handle, useEdges } from "@xyflow/react";
+import { Connection, Handle, useEdges, Edge} from "@xyflow/react";
 import { cva } from "class-variance-authority";
 import React, { useCallback, useMemo } from "react";
 import { cn } from "../../utils/cn";
-import { CustomEdge, EDGE_VARIANTS, HandlersConfig } from "./Handlers.types";
+import {
+  CustomEdge,
+  EDGE_VARIANTS,
+  HandlersConfig,
+} from "./Handlers.types";
 
 const handlerStyles = cva("opacity-0 hover:opacity-100", {
   variants: {
@@ -37,18 +41,21 @@ const Handlers = ({
   nodeId,
   isHovered,
   handlerConfigOptions,
+  isValidConnection,
+  isConnectable = true,
 }: {
   nodeId: string;
   isHovered: boolean;
   handlerConfigOptions: HandlersConfig[];
+  isValidConnection?: (connection: Connection | Edge) => boolean;
+  isConnectable?: boolean;
 }) => {
   const edges = useEdges<CustomEdge>();
 
   const getType = useMemo(() => {
-    return (sourceHandlerId: string) => {
+    return (handlerId: string) => {
       const edge = edges.find(
-        (edge) =>
-          edge.sourceHandle === sourceHandlerId && edge.source === nodeId
+        (edge) => edge.sourceHandle === handlerId && edge.source === nodeId
       );
 
       return edge ? edge?.edgeVariant : undefined;
@@ -68,7 +75,7 @@ const Handlers = ({
 
   return (
     <>
-      {handlerConfigOptions.map((handle, index) => {
+      {handlerConfigOptions.map((handle) => {
         const { id, type, position } = handle;
         return (
           <Handle
@@ -84,6 +91,8 @@ const Handlers = ({
                 edgeVariant: getType(id),
               })
             )}
+            isValidConnection={isValidConnection}
+            isConnectable={isConnectable}
           />
         );
       })}

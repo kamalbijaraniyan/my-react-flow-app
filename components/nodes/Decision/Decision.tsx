@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { NodeProps, NodeResizer } from "@xyflow/react";
+import React, { useCallback, useState } from "react";
+import { NodeProps, NodeResizer, OnResize } from "@xyflow/react";
 import { NodeData } from "./Decision.types";
 import Handlers from "../../atoms/Handlers";
 import { handlerConfig } from "../../../src/App";
@@ -8,14 +8,14 @@ const Decision: React.FC<NodeProps<NodeData>> = ({ id, data, selected }) => {
   const [size, setSize] = useState({ width: 40, height: 40 });
   const [isHovered, setIsHovered] = useState(false);
 
-  const onResize = (e, { width, height }) => {
+  const onResize:OnResize = useCallback((e, { width, height }) => {
     setSize({ width, height });
-  };
+  },[])
 
   return (
     <>
       {selected ? (
-        <NodeResizer minWidth={100} minHeight={30} onResize={onResize} />
+        <NodeResizer minWidth={100} minHeight={30} onResize={(a,b)=>onResize} />
       ) : null}
 
       <div
