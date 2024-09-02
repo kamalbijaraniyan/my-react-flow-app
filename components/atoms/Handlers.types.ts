@@ -4,7 +4,7 @@ export enum EDGE_VARIANTS {
   CONTROL = "control",
   CASE_CONTROL = "case_control",
   ELSE_CONTROL = "else_control",
-  CASE_DATA = "case_data",
+  DATA_FLOW = "data_flow",
 }
 
 export enum HANDLER_TYPE {

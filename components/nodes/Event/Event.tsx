@@ -4,7 +4,9 @@ import Handlers from "../../atoms/Handlers";
 import { handlerConfig } from "../../../src/App";
 import { getNodeVariantInfo } from "../../../lib/getNodeVariantInfo";
 import { NODE_VARIANTS } from "../../../components/atoms/Handlers.types";
+import { toast } from "sonner";
 
+let toastActive=false
 const Event: React.FC<NodeProps> = ({ selected, id }) => {
   const [size, setSize] = useState({ width: 40, height: 40 });
   const [isHovered, setIsHovered] = useState(false);
@@ -23,6 +25,12 @@ const Event: React.FC<NodeProps> = ({ selected, id }) => {
       nodeVariant !== NODE_VARIANTS.ACTIVITY &&
       nodeVariant !== NODE_VARIANTS.MERGE
     ) {
+      if (!toastActive) {
+        
+        toast.warning("EVENT node can only be connected to BUSINESS_ACTIVITY, ACTIVITY or MERGE node");
+        toastActive = true;
+        setTimeout(() => (toastActive = false), 2000);
+      }
       
       return false
     }
@@ -43,6 +51,7 @@ const Event: React.FC<NodeProps> = ({ selected, id }) => {
       <div
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        title="Event Node"
         className={`relative rounded-full text-black flex items-center justify-center overflow-hidden  bg-[#d2d9ef] border-blue-950 border-2`}
         style={{
           width: size.width,

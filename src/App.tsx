@@ -43,7 +43,10 @@ import ContextMenu from "../components/atoms/EdgeOptionMenu/EdgeOptionMenu";
 import { MenuPosition } from "components/atoms/EdgeOptionMenu/EdgeOptionMenu.types";
 import TestComponent from "../components/TestComponent";
 import { getNodeVariantInfo } from "../lib/getNodeVariantInfo";
+import { toast, Toaster } from "sonner";
+import { globalValidation } from "../lib/globalValidation";
 
+let toastActive = false;
 export const handlerConfig = [
   { id: "topSource", type: HANDLER_TYPE.SOURCE, position: Position.Top },
   { id: "topTarget", type: HANDLER_TYPE.TARGET, position: Position.Top },
@@ -184,11 +187,7 @@ function App() {
       position: { x: 100, y: 125 },
     },
   ]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-
-  const [selectedEdge, setSelectedEdge] = useState<EDGE_VARIANTS>(
-    EDGE_VARIANTS.CONTROL
-  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState<CustomEdge>([]);
 
   const [pendingConnection, setPendingConnection] = useState<Connection | null>(
     null
@@ -197,8 +196,12 @@ function App() {
   const [visible, setVisible] = useState(false);
   const flowRef = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
+  const [globalValidationState, setGlobalValidationState] = useState<string[]>(
+    []
+  );
 
   const onConnectStart = useCallback(() => setPendingConnection(null), []);
+
   const onConnect = useCallback(
     (connection: Connection) => {
       const { source, target } = connection;
@@ -212,6 +215,9 @@ function App() {
             sourceNodeInfo.nodeVariant !== NODE_VARIANTS.INITIAL &&
             sourceNodeInfo.nodeVariant !== NODE_VARIANTS.DECISION
           ) {
+            toast.warning(
+              "BLOCK node can only be connected to INITIAL or DECISION node"
+            );
             return;
           }
           break;
@@ -222,6 +228,9 @@ function App() {
             sourceNodeInfo.nodeVariant !== NODE_VARIANTS.ACTIVITY &&
             sourceNodeInfo.nodeVariant !== NODE_VARIANTS.MERGE
           ) {
+            toast.warning(
+              "EVENT node can only be connected to BUSINESS_ACTIVITY, ACTIVITY or MERGE node"
+            );
             return;
           }
           break;
@@ -232,7 +241,7 @@ function App() {
 
       setPendingConnection(connection);
     },
-    [nodes, selectedEdge, getNodeVariantInfo]
+    [nodes]
   );
 
   const onConnectionEnd: OnConnectEnd = useCallback(
@@ -285,14 +294,12 @@ function App() {
 
       const newNodeType =
         NODE_VARIANTS[data.variant.toUpperCase() as keyof typeof NODE_VARIANTS];
-      // console.log(nodes);
 
       if (
         newNodeType === NODE_VARIANTS.INITIAL &&
         nodes.some((node) => node.type === NODE_VARIANTS.INITIAL)
       ) {
-        console.log("yo");
-        
+        toast.warning("Only one INITIAL node is allowed");
         return;
       }
 
@@ -312,29 +319,61 @@ function App() {
   );
 
   const isValidConnection = (connection: Connection | Edge) => {
-    const { source, target } = connection;
-    const { nodeVariant, nodeId } = getNodeVariantInfo(source, nodes);
-    switch (nodeVariant) {
-      case NODE_VARIANTS.ACTIVITY:
-        const outgoingCount = edges.filter(
-          (edge) => edge.source === nodeId
-        ).length;
+    const { source } = connection;
+    const srcNodeVariant = getNodeVariantInfo(source, nodes).nodeVariant;
 
-        if (outgoingCount >= 1) {
-          return false;
+    if (
+      srcNodeVariant === NODE_VARIANTS.ACTIVITY ||
+      srcNodeVariant === NODE_VARIANTS.BUSINESS_ACTIVITY ||
+      srcNodeVariant === NODE_VARIANTS.INITIAL ||
+      srcNodeVariant === NODE_VARIANTS.MERGE
+    ) {
+      const outgoingCount = edges.filter(
+        (edge) => edge.source === source
+      ).length;
+
+      if (outgoingCount > 0) {
+        if (!toastActive) {
+          toast.warning(
+            `Only one outgoing flow allowed from ${srcNodeVariant.toLocaleUpperCase()} Node`
+          );
+          toastActive = true;
+          setTimeout(() => (toastActive = false), 2000);
         }
-        return true;
+        return false;
+      }
 
-      default:
-        console.log("Unknown node variant");
-        return true;
+      return true;
     }
+
+    return true;
   };
+
+  useEffect(() => {
+    setGlobalValidationState(globalValidation(nodes, edges));
+  }, [nodes, edges]);
+
+  const handleExport = ()=>{
+    const data = {
+      nodes: nodes,
+      edges: edges,
+    };
+    const json = JSON.stringify(data);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "data.json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Export Successful");
+  }
 
   return (
     <div className="w-screen h-screen">
-      <TestComponent/>
-      {/* <ReactFlow
+      {/* <TestComponent/> */}
+      <ReactFlow
         ref={flowRef}
         nodes={nodes}
         edges={edges}
@@ -348,6 +387,7 @@ function App() {
         onDragOver={(e) => e.preventDefault()}
         fitView
         onPaneClick={onPaneClick}
+        isValidConnection={isValidConnection}
       >
         {visible && pendingConnection ? (
           <ContextMenu
@@ -357,7 +397,7 @@ function App() {
             setEdges={setEdges}
           />
         ) : null}
-
+        <Toaster />
         <MiniMap nodeStrokeWidth={1} />
         <Controls />
         <Background color="#ccc" variant={BackgroundVariant.Lines} />
@@ -381,23 +421,36 @@ function App() {
           </div>
         </Panel>
         <Panel position="top-right">
-          <div className="flex gap-1">
-            {Object.values(EDGE_VARIANTS).map((variant) => (
-              <button
-                key={variant}
-                className={`text-xss border rounded-md p-1 ${
-                  selectedEdge === variant
-                    ? "bg-slate-800 text-white"
-                    : "bg-slate-400 text-black"
-                }`}
-                onClick={() => setSelectedEdge(variant)}
-              >
-                {variant}
-              </button>
-            ))}
+          <div className="flex gap-1 flex-col">
+            <button
+              className={`h-14 w-44 rounded-md text-white disabled:cursor-not-allowed ${
+                globalValidationState.length == 0
+                  ? "bg-green-600"
+                  : "bg-red-600"
+              }`}
+              disabled={globalValidationState.length > 0}
+              onClick={handleExport}
+            >
+              Export
+            </button>
+            {globalValidationState.length > 0 ? (
+              <div className="pl-5 bg-gray-200 w-44">
+                <ul className="flex flex-col gap-1 p-2 list-disc w-full">
+                  {globalValidationState.map((err) => (
+                    <li
+                      className="text-red-700 w-full text-xs"
+                      key={err}
+                      title={err}
+                    >
+                      {err}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         </Panel>
-      </ReactFlow> */}
+      </ReactFlow>
     </div>
   );
 }

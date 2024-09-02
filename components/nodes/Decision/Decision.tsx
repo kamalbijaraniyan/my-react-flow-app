@@ -15,13 +15,14 @@ const Decision: React.FC<NodeProps<NodeData>> = ({ id, data, selected }) => {
   return (
     <>
       {selected ? (
-        <NodeResizer minWidth={100} minHeight={30} onResize={(a,b)=>onResize} />
+        <NodeResizer minWidth={100} minHeight={30} onResize={onResize} />
       ) : null}
 
       <div
-        className="flex items-center justify-center"
+        className="flex items-center justify-center h-full w-full"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        title="Decision Node"
         style={{
           width: size.width,
           height: size.height,

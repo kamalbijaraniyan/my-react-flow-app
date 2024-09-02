@@ -1,12 +1,8 @@
-import { Connection, Handle, useEdges, Edge} from "@xyflow/react";
+import { Connection, Handle, useEdges, Edge, Position } from "@xyflow/react";
 import { cva } from "class-variance-authority";
 import React, { useCallback, useMemo } from "react";
 import { cn } from "../../utils/cn";
-import {
-  CustomEdge,
-  EDGE_VARIANTS,
-  HandlersConfig,
-} from "./Handlers.types";
+import { CustomEdge, EDGE_VARIANTS, HANDLER_TYPE, HandlersConfig } from "./Handlers.types";
 
 const handlerStyles = cva("opacity-0 hover:opacity-100", {
   variants: {
@@ -16,7 +12,7 @@ const handlerStyles = cva("opacity-0 hover:opacity-100", {
         "rounded-full bg-green-500 h-3 w-3 border-black border flex items-center justify-center before:content-['V'] before:text-black before:text-xxs",
       [EDGE_VARIANTS.ELSE_CONTROL]:
         "rounded-full bg-red-500 h-3 w-3 border-black border flex items-center justify-center before:content-['[]'] before:text-black before:text-xxs",
-      [EDGE_VARIANTS.CASE_DATA]: "opacity-100",
+      [EDGE_VARIANTS.DATA_FLOW]: "opacity-100",
     },
     isConnected: {
       true: "opacity-100",
@@ -52,7 +48,8 @@ const Handlers = ({
 }) => {
   const edges = useEdges<CustomEdge>();
 
-  const getType = useMemo(() => {
+  //retrives edge variant
+  const getEdgeVariant = useMemo(() => {
     return (handlerId: string) => {
       const edge = edges.find(
         (edge) => edge.sourceHandle === handlerId && edge.source === nodeId
@@ -62,6 +59,7 @@ const Handlers = ({
     };
   }, [edges, nodeId]);
 
+  //checks if the handle is connected
   const isConnected = useCallback(
     (handleId: string) => {
       return edges.some(
@@ -72,6 +70,25 @@ const Handlers = ({
     },
     [edges, nodeId]
   );
+
+  const shouldDisableOpposite = (type:HANDLER_TYPE, position:Position) => {
+    //checks if target handle is connected for the same position
+    if (type === "source") {
+      
+      return edges.some(
+        (edge) =>
+          edge.target === nodeId && edge.targetHandle?.includes(position)
+      );
+    }
+    //checks if source handle is connected for the same position
+    if (type === "target") {
+      return edges.some(
+        (edge) =>
+          edge.source === nodeId && edge.sourceHandle?.includes(position)
+      );
+    }
+    return false;
+  };
 
   return (
     <>
@@ -88,11 +105,13 @@ const Handlers = ({
                 isConnected: isConnected(id),
                 isHovered: isHovered,
                 type: type,
-                edgeVariant: getType(id),
+                edgeVariant: getEdgeVariant(id),
               })
             )}
             isValidConnection={isValidConnection}
-            isConnectable={isConnectable}
+            isConnectable={
+              isConnectable && !shouldDisableOpposite(type, position)
+            }
           />
         );
       })}

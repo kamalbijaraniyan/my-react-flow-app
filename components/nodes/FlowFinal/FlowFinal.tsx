@@ -34,6 +34,7 @@ const FlowFinal: React.FC<NodeProps> = ({ selected, id }) => {
         style={{ width: size.width, height: size.height }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        title="End Node"
       >
         <span className="absolute top-1/2 left-0 w-full h-px bg-black -translate-y-1/2 rotate-45"></span>
         <span className="absolute top-0 left-1/2 w-px h-full bg-black -translate-x-1/2 rotate-45"></span>

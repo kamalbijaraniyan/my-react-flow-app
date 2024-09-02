@@ -11,35 +11,37 @@ const ContextMenu: React.FC<EdgeOptionsMenuProps> = ({
   connection,
   setEdges,
 }) => {
-  const [menuOptions, setMenuOptions] = useState(Object.values(EDGE_VARIANTS))
+  if (!connection) return null;
+
+  const [menuOptions, setMenuOptions] = useState(Object.values(EDGE_VARIANTS));
   const nodes = useNodes();
-  const edges = useEdges<CustomEdge>()
+  const edges = useEdges<CustomEdge>();
+
+  // connect edges to nodes
   const handleConnection = useCallback(
     (selectedEdge: EDGE_VARIANTS) => {
       menuClose();
-      if (!connection) {
-        return;
-      }
+
       const newEdge = {
         ...connection,
-        id: `e${connection?.source}-${connection?.target}_h${connection.sourceHandle}-${connection.targetHandle}`,
+        id: `e${connection?.source}-${connection?.target}_${connection.sourceHandle}-${connection.targetHandle}`,
         markerEnd:
-          selectedEdge === EDGE_VARIANTS.CASE_DATA
+          selectedEdge === EDGE_VARIANTS.DATA_FLOW
             ? edgeMarkerEndStyles.dataFlow
             : edgeMarkerEndStyles.normalFlow,
         edgeVariant: selectedEdge,
         style:
-          selectedEdge === EDGE_VARIANTS.CASE_DATA
+          selectedEdge === EDGE_VARIANTS.DATA_FLOW
             ? connectionLineStyles.dataFlow
             : connectionLineStyles.normalFlow,
-        animated: selectedEdge === EDGE_VARIANTS.CASE_DATA ? true : false,
+        animated: selectedEdge === EDGE_VARIANTS.DATA_FLOW ? true : false,
       };
       setEdges((eds) => addEdge(newEdge, eds));
     },
-    [connection, connectionLineStyles, edgeMarkerEndStyles, addEdge, menuClose]
+    [connection, addEdge, menuClose]
   );
 
-  if (!connection) return;
+  // retrives source and target node variant
   const sourceNode = useMemo(() => {
     return getNodeVariantInfo(connection.source, nodes);
   }, [connection.source, nodes]);
@@ -47,29 +49,26 @@ const ContextMenu: React.FC<EdgeOptionsMenuProps> = ({
     return getNodeVariantInfo(connection.target, nodes);
   }, [connection.target, nodes]);
 
+  // filters edge options as per source node
+  useLayoutEffect(() => {
+    if (sourceNode.nodeVariant === NODE_VARIANTS.DECISION) {
+      setMenuOptions(Object.values(EDGE_VARIANTS));
+      const connectedEdges = edges.filter(
+        (edge) => edge.source === sourceNode.nodeId
+      );
+      const elseControlCount = connectedEdges.filter(
+        (edge) => edge.edgeVariant === EDGE_VARIANTS.ELSE_CONTROL
+      ).length;
 
-  useLayoutEffect(()=>{
-    if(sourceNode.nodeVariant===NODE_VARIANTS.DECISION){
-      const connectedEdges = edges.filter(edge => edge.source === sourceNode.nodeId);
-      const elseControlCount = connectedEdges.filter(edge => edge.edgeVariant === EDGE_VARIANTS.ELSE_CONTROL).length;
-      
-      if(elseControlCount>0){
-        setMenuOptions(prev => prev.filter(variant => variant !== EDGE_VARIANTS.ELSE_CONTROL))
+      if (elseControlCount > 0) {
+        setMenuOptions((prev) =>
+          prev.filter((variant) => variant !== EDGE_VARIANTS.ELSE_CONTROL)
+        );
       }
-      
-    }
-    if (
-      sourceNode.nodeVariant === NODE_VARIANTS.INITIAL ||
-      targetNode.nodeVariant === NODE_VARIANTS.EVENT ||
-      sourceNode.nodeVariant === NODE_VARIANTS.BUSINESS_ACTIVITY ||
-      sourceNode.nodeVariant === NODE_VARIANTS.MERGE ||
-      sourceNode.nodeVariant === NODE_VARIANTS.EVENT
-    ) {
+    } else {
       handleConnection(EDGE_VARIANTS.CONTROL);
     }
-
-
-  },[sourceNode,targetNode,handleConnection])
+  }, [sourceNode, targetNode, handleConnection]);
 
   return (
     <div

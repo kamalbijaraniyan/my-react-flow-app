@@ -3,6 +3,7 @@ import { NodeProps, NodeResizer, OnResize, useEdges } from "@xyflow/react";
 import { NodeData } from "./Merge.types";
 import Handlers from "../../atoms/Handlers";
 import { handlerConfig } from "../../../src/App";
+import { toast } from "sonner";
 
 const Merge: React.FC<NodeProps<NodeData>> = ({ id, data, selected }) => {
   const [size, setSize] = useState({ width: 40, height: 40 });
@@ -13,10 +14,13 @@ const Merge: React.FC<NodeProps<NodeData>> = ({ id, data, selected }) => {
     setSize({ width, height });
   },[])
 
-  const isValidConnection = useCallback(() => {
-    const outgoingCount = edges.filter((edge) => edge.source === id).length;
-    return outgoingCount < 1;
-  },[edges, id])
+  // const isValidConnection = useCallback(() => {
+  //   const outgoingCount = edges.filter((edge) => edge.source === id).length;
+
+  //   if (outgoingCount > 0) toast.warning("Only one outgoing flow allowed");
+
+  //   return outgoingCount < 1;
+  // },[edges, id])
 
 
   return (
@@ -29,6 +33,7 @@ const Merge: React.FC<NodeProps<NodeData>> = ({ id, data, selected }) => {
         className="flex items-center justify-center"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        title="Merge Node"
         style={{
           width: size.width,
           height: size.height,
@@ -51,7 +56,7 @@ const Merge: React.FC<NodeProps<NodeData>> = ({ id, data, selected }) => {
         nodeId={id}
         isHovered={isHovered}
         handlerConfigOptions={handlerConfig}
-        isValidConnection={isValidConnection}
+        // isValidConnection={isValidConnection}
       />
     </>
   );
