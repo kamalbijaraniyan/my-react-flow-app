@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { NodeProps, NodeResizer, OnResize, Position } from "@xyflow/react";
 import { HANDLER_TYPE } from "../../atoms/Handlers.types";
 import Handlers from "../../atoms/Handlers";
+import { NodeData } from "./Block.types";
 
 const handlerConfig = [
   { id: "topTarget", type: HANDLER_TYPE.TARGET, position: Position.Top },
@@ -10,7 +11,7 @@ const handlerConfig = [
   { id: "leftTarget", type: HANDLER_TYPE.TARGET, position: Position.Left },
 ];
 
-const Block: React.FC<NodeProps> = ({ selected, id }) => {
+const Block: React.FC<NodeProps<NodeData>> = ({ selected, id, data }) => {
   const [size, setSize] = useState({ width: 40, height: 40 });
   const [isHovered, setIsHovered] = useState(false);
 
@@ -40,6 +41,9 @@ const Block: React.FC<NodeProps> = ({ selected, id }) => {
           height: size.height,
         }}
       >
+        <span className="absolute top-0 left-0 flex justify-center items-center text-center overflow-hidden w-full h-full rounded-full">
+          {data?.label}
+        </span>
         <span className="w-full h-1/6 bg-white"></span>
       </div>
       <Handlers

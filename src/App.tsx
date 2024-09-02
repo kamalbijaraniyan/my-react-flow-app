@@ -353,7 +353,8 @@ function App() {
     setGlobalValidationState(globalValidation(nodes, edges));
   }, [nodes, edges]);
 
-  const handleExport = ()=>{
+  // exports nodes and edges in json formate
+  const handleExport = useCallback(() => {
     const data = {
       nodes: nodes,
       edges: edges,
@@ -363,15 +364,15 @@ function App() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "data.json";
+    link.download = "Activity_Diagram_Data.json";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     toast.success("Export Successful");
-  }
+  },[nodes, edges])
 
   return (
-    <div className="w-screen h-screen">
+    <div className="w-screen h-screen text-xs">
       {/* <TestComponent/> */}
       <ReactFlow
         ref={flowRef}
@@ -402,7 +403,7 @@ function App() {
         <Controls />
         <Background color="#ccc" variant={BackgroundVariant.Lines} />
         <Panel position="top-left">
-          <div className="flex gap-1 flex-col">
+          <div className="flex gap-1 flex-col text-base">
             {Object.values(NODE_VARIANTS).map((variant) => (
               <button
                 key={variant}

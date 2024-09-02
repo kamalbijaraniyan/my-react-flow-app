@@ -14,6 +14,12 @@ export const globalValidation = (nodes: Node[], edges: CustomEdge[]) => {
   }
 
   nodes.forEach((node) => {
+    const totalConnectedEdges = edges.filter(edge => edge.source === node.id || edge.target === node.id).length;
+    if(!totalConnectedEdges){
+      errors.push(
+        `Node ${node.type?.toLocaleUpperCase()} has no incoming or outgoing edges.`
+       )
+    }
     if (node.type === NODE_VARIANTS.INITIAL) {
       const connectedEdge = edges.find((edge) => edge.source === node.id);
 

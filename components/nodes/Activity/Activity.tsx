@@ -14,9 +14,9 @@ const Activity: React.FC<NodeProps<NodeData>> = ({ id, data, selected }) => {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         title="Activity Node"
-        className={`${data?.classNames} relative text-xs h-full w-full flex items-center justify-center rounded-md bg-[#d2d9ef] border-blue-950 border-2 box-border p-2`}
+        className={`relative text-xs h-full w-full flex items-center justify-center rounded-md bg-[#d2d9ef] border-blue-950 border-2 box-border p-2 overflow-hidden`}
       >
-        {data.label}
+        {data?.label}
       </div>
 
       <Handlers

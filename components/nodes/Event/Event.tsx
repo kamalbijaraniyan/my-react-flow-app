@@ -5,9 +5,10 @@ import { handlerConfig } from "../../../src/App";
 import { getNodeVariantInfo } from "../../../lib/getNodeVariantInfo";
 import { NODE_VARIANTS } from "../../../components/atoms/Handlers.types";
 import { toast } from "sonner";
+import { NodeData } from "./Event.types";
 
 let toastActive=false
-const Event: React.FC<NodeProps> = ({ selected, id }) => {
+const Event: React.FC<NodeProps<NodeData>> = ({ selected, id, data }) => {
   const [size, setSize] = useState({ width: 40, height: 40 });
   const [isHovered, setIsHovered] = useState(false);
   const nodes = useNodes()
@@ -52,14 +53,13 @@ const Event: React.FC<NodeProps> = ({ selected, id }) => {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         title="Event Node"
-        className={`relative rounded-full text-black flex items-center justify-center overflow-hidden  bg-[#d2d9ef] border-blue-950 border-2`}
+        className={`relative rounded-full text-black flex items-center justify-center overflow-hidden bg-[#d2d9ef] border-blue-950 border-2`}
         style={{
           width: size.width,
           height: size.height,
-          fontSize: size.width / 1.5,
         }}
       >
-        E
+        {data?.label ?? "E"}
       </div>
       <Handlers
         nodeId={id}

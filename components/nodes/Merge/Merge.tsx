@@ -1,27 +1,16 @@
 import React, { useCallback, useState } from "react";
-import { NodeProps, NodeResizer, OnResize, useEdges } from "@xyflow/react";
+import { NodeProps, NodeResizer, OnResize } from "@xyflow/react";
 import { NodeData } from "./Merge.types";
 import Handlers from "../../atoms/Handlers";
 import { handlerConfig } from "../../../src/App";
-import { toast } from "sonner";
 
 const Merge: React.FC<NodeProps<NodeData>> = ({ id, data, selected }) => {
   const [size, setSize] = useState({ width: 40, height: 40 });
   const [isHovered, setIsHovered] = useState(false);
-  const edges = useEdges();
 
   const onResize:OnResize = useCallback((e, { width, height }) => {
     setSize({ width, height });
   },[])
-
-  // const isValidConnection = useCallback(() => {
-  //   const outgoingCount = edges.filter((edge) => edge.source === id).length;
-
-  //   if (outgoingCount > 0) toast.warning("Only one outgoing flow allowed");
-
-  //   return outgoingCount < 1;
-  // },[edges, id])
-
 
   return (
     <>
