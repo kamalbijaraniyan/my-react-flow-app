@@ -19,15 +19,17 @@ const Event: React.FC<NodeProps<NodeData>> = ({ selected, id, data }) => {
   };
 
   const isValidConnection = (connection: Connection|Edge) => {
-    const {target} = connection;
+    const {target, source} = connection;
+    if(target===source) return false;
     const {nodeVariant} = getNodeVariantInfo(target, nodes)
     if (
       nodeVariant !== NODE_VARIANTS.BUSINESS_ACTIVITY &&
       nodeVariant !== NODE_VARIANTS.ACTIVITY &&
       nodeVariant !== NODE_VARIANTS.MERGE
     ) {
+      console.log(connection);
+      
       if (!toastActive) {
-        
         toast.warning("EVENT node can only be connected to BUSINESS_ACTIVITY, ACTIVITY or MERGE node");
         toastActive = true;
         setTimeout(() => (toastActive = false), 2000);

@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { NodeProps, NodeResizer, OnResize } from "@xyflow/react";
+import { Connection, NodeProps, NodeResizer, OnResize } from "@xyflow/react";
 import { NodeData } from "./Decision.types";
 import Handlers from "../../atoms/Handlers";
 import { handlerConfig } from "../../../src/App";
@@ -12,6 +12,9 @@ const Decision: React.FC<NodeProps<NodeData>> = ({ id, data, selected }) => {
     setSize({ width, height });
   },[])
 
+  const onConnect = (connection: Connection) => {
+    console.log("onConnect", connection);
+  };
   return (
     <>
       {selected ? (
@@ -45,6 +48,7 @@ const Decision: React.FC<NodeProps<NodeData>> = ({ id, data, selected }) => {
         nodeId={id}
         isHovered={isHovered}
         handlerConfigOptions={handlerConfig}
+        onConnect={onConnect}
       />
     </>
   );

@@ -39,12 +39,14 @@ const Handlers = ({
   handlerConfigOptions,
   isValidConnection,
   isConnectable = true,
+  onConnect,
 }: {
   nodeId: string;
   isHovered: boolean;
   handlerConfigOptions: HandlersConfig[];
   isValidConnection?: (connection: Connection | Edge) => boolean;
   isConnectable?: boolean;
+  onConnect?: (connection: Connection) => void;
 }) => {
   const edges = useEdges<CustomEdge>();
 
@@ -112,6 +114,7 @@ const Handlers = ({
             isConnectable={
               isConnectable && !shouldDisableOpposite(type, position)
             }
+            onConnect={onConnect}
           />
         );
       })}

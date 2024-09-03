@@ -4,6 +4,28 @@ import { CustomEdge, EDGE_VARIANTS, NODE_VARIANTS } from "../Handlers.types";
 import { connectionLineStyles, edgeMarkerEndStyles } from "../../../src/App";
 import { EdgeOptionsMenuProps } from "./EdgeOptionMenu.types";
 import { getNodeVariantInfo } from "../../../lib/getNodeVariantInfo";
+import { ERRORS, useErrorContext } from "../../../context/ErrorContext";
+import {
+  countEdges,
+} from "../../../lib/validationFunctions";
+
+const nodesWithHasIncomingFlow = [
+  NODE_VARIANTS.BLOCK,
+  NODE_VARIANTS.RETURN,
+  NODE_VARIANTS.FLOW_FINAL,
+  NODE_VARIANTS.BUSINESS_ACTIVITY,
+  NODE_VARIANTS.ACTIVITY,
+  NODE_VARIANTS.DECISION,
+  NODE_VARIANTS.MERGE,
+  NODE_VARIANTS.EVENT,
+];
+
+const nodesWithHasOneOutgoingFlow = [
+  NODE_VARIANTS.INITIAL,
+  NODE_VARIANTS.BUSINESS_ACTIVITY,
+  NODE_VARIANTS.ACTIVITY,
+  NODE_VARIANTS.MERGE,
+];
 
 const ContextMenu: React.FC<EdgeOptionsMenuProps> = ({
   menuClose,
@@ -16,6 +38,15 @@ const ContextMenu: React.FC<EdgeOptionsMenuProps> = ({
   const [menuOptions, setMenuOptions] = useState(Object.values(EDGE_VARIANTS));
   const nodes = useNodes();
   const edges = useEdges<CustomEdge>();
+  const { updateErrorStatus } = useErrorContext();
+
+  // retrives source and target node variant
+  const sourceNode = useMemo(() => {
+    return getNodeVariantInfo(connection.source, nodes);
+  }, [connection.source, nodes]);
+  const targetNode = useMemo(() => {
+    return getNodeVariantInfo(connection.target, nodes);
+  }, [connection.target, nodes]);
 
   // connect edges to nodes
   const handleConnection = useCallback(
@@ -36,18 +67,90 @@ const ContextMenu: React.FC<EdgeOptionsMenuProps> = ({
             : connectionLineStyles.normalFlow,
         animated: selectedEdge === EDGE_VARIANTS.DATA_FLOW ? true : false,
       };
+
       setEdges((eds) => addEdge(newEdge, eds));
+      handleValidation(addEdge(newEdge, edges));
     },
     [connection, addEdge, menuClose]
   );
 
-  // retrives source and target node variant
-  const sourceNode = useMemo(() => {
-    return getNodeVariantInfo(connection.source, nodes);
-  }, [connection.source, nodes]);
-  const targetNode = useMemo(() => {
-    return getNodeVariantInfo(connection.target, nodes);
-  }, [connection.target, nodes]);
+  const handleValidation = useCallback(
+    (edges: CustomEdge[]) => {
+      const { nodeVariant: sourceNodeVariant, nodeId: sourceNodeId } =
+        sourceNode;
+      const { nodeVariant: targetNodeVariant, nodeId: targetNodeId } =
+        targetNode;
+
+      // Handles node have exactly one outgoing flow.
+      if (nodesWithHasOneOutgoingFlow.includes(sourceNodeVariant)) {
+        const outgoingFlows = countEdges(
+          edges,
+          (edge) => edge.source === sourceNodeId
+        );
+        updateErrorStatus(
+          sourceNodeVariant,
+          ERRORS.HAS_ONE_OUTGOING_FLOW,
+          outgoingFlows != 1
+        );
+      }
+
+      // handles Node must have at least one incoming flow.
+      if (nodesWithHasIncomingFlow.includes(targetNodeVariant)) {
+        const incomingFlows = countEdges(
+          edges,
+          (edge) => edge.target === targetNodeId
+        );
+
+        updateErrorStatus(
+          targetNodeVariant,
+          ERRORS.HAS_INCOMING_FLOW,
+          incomingFlows < 1
+        );
+      }
+
+      if (sourceNodeVariant === NODE_VARIANTS.EVENT) {
+        const outgoingFlows = countEdges(
+          edges,
+          (edge) => edge.source === sourceNodeId
+        );
+
+        updateErrorStatus(
+          sourceNodeVariant,
+          ERRORS.HAS_OUTGOING_FLOW,
+          outgoingFlows < 1
+        );
+      }
+
+      // validates DICISION node
+      if (sourceNodeVariant === NODE_VARIANTS.DECISION) {
+        const outgoingFlows = countEdges(
+          edges,
+          (edge) => edge.source === sourceNodeId
+        );
+        const elseFlowCount = countEdges(
+          edges,
+          (edge) =>
+            edge.source === sourceNodeId &&
+            edge.edgeVariant === EDGE_VARIANTS.ELSE_CONTROL
+        );
+
+        // Validates that the DECISION node must have more than one outgoing flow.
+        updateErrorStatus(
+          NODE_VARIANTS.DECISION,
+          ERRORS.VALID_FLOW_COUNT,
+          outgoingFlows <= 1
+        );
+
+        // Validates that the DECISION node can have only one ELSE flow.
+        updateErrorStatus(
+          NODE_VARIANTS.DECISION,
+          ERRORS.SINGLE_ELSE_FLOW,
+          elseFlowCount > 1
+        );
+      }
+    },
+    [sourceNode, targetNode]
+  );
 
   // filters edge options as per source node
   useLayoutEffect(() => {
@@ -68,7 +171,7 @@ const ContextMenu: React.FC<EdgeOptionsMenuProps> = ({
     } else {
       handleConnection(EDGE_VARIANTS.CONTROL);
     }
-  }, [sourceNode, targetNode, handleConnection]);
+  }, [sourceNode, targetNode]);
 
   return (
     <div

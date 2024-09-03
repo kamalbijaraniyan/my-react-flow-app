@@ -1,7 +1,6 @@
 import React, {
   DragEvent,
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from "react";
@@ -13,6 +12,7 @@ import {
   Edge,
   MarkerType,
   MiniMap,
+  Node,
   OnConnectEnd,
   Panel,
   Position,
@@ -38,13 +38,15 @@ import {
   HANDLER_TYPE,
   NODE_VARIANTS,
 } from "../components/atoms/Handlers.types";
-import { StateProvider } from "../context/StateContext";
+import {
+  ErrorProvider,
+  useErrorContext,
+} from "../context/ErrorContext";
 import ContextMenu from "../components/atoms/EdgeOptionMenu/EdgeOptionMenu";
 import { MenuPosition } from "components/atoms/EdgeOptionMenu/EdgeOptionMenu.types";
 import TestComponent from "../components/TestComponent";
 import { getNodeVariantInfo } from "../lib/getNodeVariantInfo";
 import { toast, Toaster } from "sonner";
-import { globalValidation } from "../lib/globalValidation";
 
 let toastActive = false;
 export const handlerConfig = [
@@ -176,17 +178,10 @@ const nodeTypes = {
   [NODE_VARIANTS.BLOCK]: Block,
 };
 
-let id = 9;
+let id = 1;
 const getId = () => `${++id}`;
 function App() {
-  const [nodes, setNodes, onNodesChange] = useNodesState([
-    {
-      id: "2",
-      type: "default",
-      data: { label: "test Node" },
-      position: { x: 100, y: 125 },
-    },
-  ]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<CustomEdge>([]);
 
   const [pendingConnection, setPendingConnection] = useState<Connection | null>(
@@ -196,9 +191,7 @@ function App() {
   const [visible, setVisible] = useState(false);
   const flowRef = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
-  const [globalValidationState, setGlobalValidationState] = useState<string[]>(
-    []
-  );
+  const { addDefaultErrorsForNode, validErrors } = useErrorContext();
 
   const onConnectStart = useCallback(() => setPendingConnection(null), []);
 
@@ -206,14 +199,14 @@ function App() {
     (connection: Connection) => {
       const { source, target } = connection;
       if (source === target) return;
-      const sourceNodeInfo = getNodeVariantInfo(source, nodes);
-      const targetNodeInfo = getNodeVariantInfo(target, nodes);
+      const sourceNodeVariant = getNodeVariantInfo(source, nodes).nodeVariant;
+      const targetNodeVariant = getNodeVariantInfo(target, nodes).nodeVariant;
 
-      switch (targetNodeInfo.nodeVariant) {
+      switch (targetNodeVariant) {
         case NODE_VARIANTS.BLOCK:
           if (
-            sourceNodeInfo.nodeVariant !== NODE_VARIANTS.INITIAL &&
-            sourceNodeInfo.nodeVariant !== NODE_VARIANTS.DECISION
+            sourceNodeVariant !== NODE_VARIANTS.INITIAL &&
+            sourceNodeVariant !== NODE_VARIANTS.DECISION
           ) {
             toast.warning(
               "BLOCK node can only be connected to INITIAL or DECISION node"
@@ -224,9 +217,9 @@ function App() {
 
         case NODE_VARIANTS.EVENT:
           if (
-            sourceNodeInfo.nodeVariant !== NODE_VARIANTS.BUSINESS_ACTIVITY &&
-            sourceNodeInfo.nodeVariant !== NODE_VARIANTS.ACTIVITY &&
-            sourceNodeInfo.nodeVariant !== NODE_VARIANTS.MERGE
+            sourceNodeVariant !== NODE_VARIANTS.BUSINESS_ACTIVITY &&
+            sourceNodeVariant !== NODE_VARIANTS.ACTIVITY &&
+            sourceNodeVariant !== NODE_VARIANTS.MERGE
           ) {
             toast.warning(
               "EVENT node can only be connected to BUSINESS_ACTIVITY, ACTIVITY or MERGE node"
@@ -297,7 +290,7 @@ function App() {
 
       if (
         newNodeType === NODE_VARIANTS.INITIAL &&
-        nodes.some((node) => node.type === NODE_VARIANTS.INITIAL)
+        nodes.some((node) => node?.type === NODE_VARIANTS.INITIAL)
       ) {
         toast.warning("Only one INITIAL node is allowed");
         return;
@@ -306,14 +299,13 @@ function App() {
       const newNode = {
         position,
         id: getId(),
-        type: NODE_VARIANTS[
-          data.variant.toUpperCase() as keyof typeof NODE_VARIANTS
-        ],
+        type: newNodeType,
         data: { label: "new Node" },
-        origin: [0.4, 0.4],
+        origin: [0.4, 0.4] as [number, number],
       };
 
       setNodes((nds) => nds.concat(newNode));
+      addDefaultErrorsForNode(newNodeType);
     },
     [screenToFlowPosition, nodes]
   );
@@ -349,10 +341,6 @@ function App() {
     return true;
   };
 
-  useEffect(() => {
-    setGlobalValidationState(globalValidation(nodes, edges));
-  }, [nodes, edges]);
-
   // exports nodes and edges in json formate
   const handleExport = useCallback(() => {
     const data = {
@@ -369,7 +357,7 @@ function App() {
     link.click();
     document.body.removeChild(link);
     toast.success("Export Successful");
-  },[nodes, edges])
+  }, [nodes, edges]);
 
   return (
     <div className="w-screen h-screen text-xs">
@@ -425,19 +413,17 @@ function App() {
           <div className="flex gap-1 flex-col">
             <button
               className={`h-14 w-44 rounded-md text-white disabled:cursor-not-allowed ${
-                globalValidationState.length == 0
-                  ? "bg-green-600"
-                  : "bg-red-600"
+                validErrors.length == 0 ? "bg-green-600" : "bg-red-600"
               }`}
-              disabled={globalValidationState.length > 0}
+              disabled={validErrors.length > 0}
               onClick={handleExport}
             >
               Export
             </button>
-            {globalValidationState.length > 0 ? (
+            {validErrors.length > 0 ? (
               <div className="pl-5 bg-gray-200 w-44">
                 <ul className="flex flex-col gap-1 p-2 list-disc w-full">
-                  {globalValidationState.map((err) => (
+                  {validErrors.map((err) => (
                     <li
                       className="text-red-700 w-full text-xs"
                       key={err}
@@ -458,9 +444,9 @@ function App() {
 
 const Flow = () => (
   <ReactFlowProvider>
-    <StateProvider>
+    <ErrorProvider>
       <App />
-    </StateProvider>
+    </ErrorProvider>
   </ReactFlowProvider>
 );
 export default Flow;
